@@ -2,6 +2,16 @@
 
 A Homebrew tap for [Plezy](https://github.com/edde746/plezy) - A modern Plex client for desktop and mobile.
 
+## Quick Start
+
+```bash
+# Add the tap and install Plezy
+brew tap Tazi0/plezy
+brew install --cask plezy
+
+# That's it! Plezy is now installed in your Applications folder.
+```
+
 ## Installation
 
 ### Add the tap and install Plezy
@@ -38,6 +48,7 @@ This tap provides:
 ### Install Plezy
 
 ```bash
+brew tap Tazi0/plezy
 brew install --cask plezy
 ```
 
