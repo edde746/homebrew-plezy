@@ -21,17 +21,17 @@ jobs:
       - name: Validate cask syntax
         run: |
           echo "Validating cask syntax..."
-          brew audit --strict --cask Casks/plezy.rb
+          brew audit --strict --cask plezy
 
       - name: Check cask style
         run: |
           echo "Checking cask style..."
-          brew style Casks/plezy.rb
+          brew style plezy
 
       - name: Test cask installation (dry run)
         run: |
           echo "Testing cask installation (dry run)..."
-          brew install --cask Casks/plezy.rb --dry-run
+          brew install --cask plezy --dry-run
 
       - name: Verify download URL
         run: |

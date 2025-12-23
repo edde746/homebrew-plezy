@@ -263,7 +263,7 @@ jobs:
 
           # Validate cask syntax
           echo "Validating cask syntax..."
-          brew audit --strict --cask Casks/plezy.rb || {
+          brew audit --strict --cask plezy || {
             echo "Cask validation failed, but continuing..."
           }
 
@@ -275,7 +275,7 @@ jobs:
           echo "Testing cask installation..."
 
           # Try to install the cask (dry run)
-          brew install --cask Casks/plezy.rb --dry-run || {
+          brew install --cask plezy --dry-run || {
             echo "Dry run failed, but continuing with commit..."
           }
 

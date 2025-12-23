@@ -147,14 +147,14 @@ print_success "Updated cask file"
 # Validate cask if Homebrew is available
 if command -v brew &> /dev/null; then
     print_info "Validating cask syntax..."
-    if brew audit --strict --cask "$CASK_FILE" 2>/dev/null; then
+    if brew audit --strict --cask plezy 2>/dev/null; then
         print_success "Cask validation passed"
     else
         print_warning "Cask validation failed, but file was still updated"
     fi
 
     print_info "Checking cask style..."
-    if brew style "$CASK_FILE" 2>/dev/null; then
+    if brew style plezy 2>/dev/null; then
         print_success "Style check passed"
     else
         print_warning "Style check failed, but file was still updated"
@@ -173,8 +173,8 @@ print_info "SHA256: $SHA256"
 print_info "Backup saved as: $BACKUP_FILE"
 echo
 print_info "Next steps:"
-echo "  1. Test the cask: brew install --cask $CASK_FILE"
-echo "  2. Validate: brew audit --strict --cask $CASK_FILE"
+echo "  1. Test the cask: brew install --cask plezy"
+echo "  2. Validate: brew audit --strict --cask plezy"
 echo "  3. Commit changes: git add Casks/plezy.rb && git commit -m 'chore: update plezy to $VERSION'"
 echo "  4. Push changes: git push"
 echo
