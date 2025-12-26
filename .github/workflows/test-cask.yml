@@ -36,7 +36,7 @@ jobs:
       - name: Verify download URL
         run: |
           VERSION=$(grep 'version "' Casks/plezy.rb | sed 's/.*version "\(.*\)".*/\1/')
-          URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.zip"
+          URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.dmg"
 
           echo "Checking if download URL is accessible: $URL"
 
@@ -54,7 +54,7 @@ jobs:
         run: |
           VERSION=$(grep 'version "' Casks/plezy.rb | sed 's/.*version "\(.*\)".*/\1/')
           EXPECTED_SHA=$(grep 'sha256 "' Casks/plezy.rb | sed 's/.*sha256 "\(.*\)".*/\1/')
-          URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.zip"
+          URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.dmg"
 
           if [ "$EXPECTED_SHA" = "no_check" ]; then
             echo "⚠️ SHA256 is set to no_check - skipping verification"
@@ -62,9 +62,9 @@ jobs:
           fi
 
           echo "Downloading file to verify SHA256..."
-          curl -L -o plezy-macos.zip "$URL"
+          curl -L -o plezy-macos.dmg "$URL"
 
-          ACTUAL_SHA=$(shasum -a 256 plezy-macos.zip | cut -d' ' -f1)
+          ACTUAL_SHA=$(shasum -a 256 plezy-macos.dmg | cut -d' ' -f1)
 
           echo "Expected SHA256: $EXPECTED_SHA"
           echo "Actual SHA256:   $ACTUAL_SHA"
@@ -79,51 +79,64 @@ jobs:
       - name: Verify app bundle structure
         run: |
           VERSION=$(grep 'version "' Casks/plezy.rb | sed 's/.*version "\(.*\)".*/\1/')
-          URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.zip"
+          URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.dmg"
 
           echo "Downloading and inspecting app bundle structure..."
-          curl -L -o plezy-macos.zip "$URL"
+          curl -L -o plezy-macos.dmg "$URL"
 
-          echo "ZIP contents:"
-          unzip -l plezy-macos.zip
+          echo "Mounting DMG..."
+          hdiutil attach plezy-macos.dmg -nobrowse -quiet
 
-          # Extract and verify app bundle
-          unzip -q plezy-macos.zip
+          # Find the mount point
+          MOUNT_POINT=$(hdiutil info | grep -A1 "plezy-macos.dmg" | grep "/Volumes" | awk '{print $1}')
+          if [ -z "$MOUNT_POINT" ]; then
+            MOUNT_POINT="/Volumes/Plezy"
+          fi
 
-          if [ -d "plezy.app" ]; then
-            echo "✅ plezy.app bundle found"
+          echo "Mount point: $MOUNT_POINT"
+          echo "DMG contents:"
+          ls -la "$MOUNT_POINT"
+
+          APP_PATH="$MOUNT_POINT/Plezy.app"
+
+          if [ -d "$APP_PATH" ]; then
+            echo "✅ Plezy.app bundle found"
 
             # Check for Info.plist
-            if [ -f "plezy.app/Contents/Info.plist" ]; then
+            if [ -f "$APP_PATH/Contents/Info.plist" ]; then
               echo "✅ Info.plist found"
 
               # Extract bundle identifier
-              BUNDLE_ID=$(plutil -p plezy.app/Contents/Info.plist | grep CFBundleIdentifier | sed 's/.*=> "\(.*\)".*/\1/')
+              BUNDLE_ID=$(plutil -p "$APP_PATH/Contents/Info.plist" | grep CFBundleIdentifier | sed 's/.*=> "\(.*\)".*/\1/')
               echo "Bundle ID: $BUNDLE_ID"
 
               # Extract app name
-              APP_NAME=$(plutil -p plezy.app/Contents/Info.plist | grep CFBundleDisplayName | sed 's/.*=> "\(.*\)".*/\1/' || echo "Not found")
+              APP_NAME=$(plutil -p "$APP_PATH/Contents/Info.plist" | grep CFBundleDisplayName | sed 's/.*=> "\(.*\)".*/\1/' || echo "Not found")
               echo "App Name: $APP_NAME"
             else
               echo "❌ Info.plist not found"
+              hdiutil detach "$MOUNT_POINT" -quiet
               exit 1
             fi
 
             # Check for executable
-            if [ -f "plezy.app/Contents/MacOS/plezy" ]; then
+            if [ -f "$APP_PATH/Contents/MacOS/plezy" ]; then
               echo "✅ Main executable found"
             else
               echo "⚠️ Main executable not found at expected location"
               echo "Contents of MacOS directory:"
-              ls -la plezy.app/Contents/MacOS/ || echo "MacOS directory not found"
+              ls -la "$APP_PATH/Contents/MacOS/" || echo "MacOS directory not found"
             fi
 
           else
-            echo "❌ plezy.app bundle not found"
+            echo "❌ Plezy.app bundle not found"
             echo "Available files/directories:"
-            ls -la
+            ls -la "$MOUNT_POINT"
+            hdiutil detach "$MOUNT_POINT" -quiet
             exit 1
           fi
+
+          hdiutil detach "$MOUNT_POINT" -quiet
 
   test-formula-syntax:
     runs-on: ubuntu-latest

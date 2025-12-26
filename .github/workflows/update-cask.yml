@@ -170,38 +170,51 @@ jobs:
         if: steps.version_check.outputs.needs_update == 'true'
         run: |
           VERSION="${{ steps.latest_release.outputs.version }}"
-          echo "Downloading plezy-macos.zip for version $VERSION"
+          echo "Downloading plezy-macos.dmg for version $VERSION"
 
-          curl -L -o plezy-macos.zip \
-            "https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.zip"
+          curl -L -o plezy-macos.dmg \
+            "https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.dmg"
 
-          if [ ! -f plezy-macos.zip ]; then
+          if [ ! -f plezy-macos.dmg ]; then
             echo "Failed to download release asset"
             exit 1
           fi
 
-          ls -la plezy-macos.zip
+          ls -la plezy-macos.dmg
 
       - name: Calculate SHA256
         if: steps.version_check.outputs.needs_update == 'true'
         id: sha256
         run: |
-          SHA256=$(shasum -a 256 plezy-macos.zip | cut -d' ' -f1)
+          SHA256=$(shasum -a 256 plezy-macos.dmg | cut -d' ' -f1)
           echo "SHA256: $SHA256"
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
       - name: Verify download contents
         if: steps.version_check.outputs.needs_update == 'true'
         run: |
-          echo "Verifying ZIP contents..."
-          unzip -l plezy-macos.zip
+          echo "Verifying DMG contents..."
+          hdiutil attach plezy-macos.dmg -nobrowse -quiet
 
-          # Check if Plezy.app exists in the archive
-          if ! unzip -l plezy-macos.zip | grep -q "Plezy.app/"; then
-            echo "Warning: Plezy.app not found in expected location"
-            echo "ZIP contents:"
-            unzip -l plezy-macos.zip
+          # Find the mount point
+          MOUNT_POINT=$(hdiutil info | grep -A1 "plezy-macos.dmg" | grep "/Volumes" | awk '{print $1}')
+          if [ -z "$MOUNT_POINT" ]; then
+            MOUNT_POINT="/Volumes/Plezy"
           fi
+
+          echo "Mount point: $MOUNT_POINT"
+          ls -la "$MOUNT_POINT"
+
+          # Check if Plezy.app exists in the DMG
+          if [ -d "$MOUNT_POINT/Plezy.app" ]; then
+            echo "✅ Plezy.app found in DMG"
+          else
+            echo "Warning: Plezy.app not found in expected location"
+            echo "DMG contents:"
+            ls -la "$MOUNT_POINT"
+          fi
+
+          hdiutil detach "$MOUNT_POINT" -quiet
 
       - name: Update cask file
         if: steps.version_check.outputs.needs_update == 'true'
@@ -214,7 +227,7 @@ jobs:
             version "$VERSION"
             sha256 "$SHA256"
 
-            url "https://github.com/edde746/plezy/releases/download/#{version}/plezy-macos.zip"
+            url "https://github.com/edde746/plezy/releases/download/#{version}/plezy-macos.dmg"
             name "Plezy"
             desc "Modern Plex client for desktop and mobile"
             homepage "https://github.com/edde746/plezy"

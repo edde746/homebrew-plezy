@@ -63,12 +63,12 @@ if [ "$CURRENT_VERSION" = "$VERSION" ]; then
 fi
 
 # Download the release
-DOWNLOAD_URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.zip"
+DOWNLOAD_URL="https://github.com/edde746/plezy/releases/download/$VERSION/plezy-macos.dmg"
 print_info "Downloading $DOWNLOAD_URL"
 
-curl -L -f -o "/tmp/plezy-macos.zip" "$DOWNLOAD_URL"
+curl -L -f -o "/tmp/plezy-macos.dmg" "$DOWNLOAD_URL"
 
-if [ ! -f "/tmp/plezy-macos.zip" ]; then
+if [ ! -f "/tmp/plezy-macos.dmg" ]; then
     print_error "Failed to download release asset"
     exit 1
 fi
@@ -77,23 +77,34 @@ print_success "Downloaded release asset"
 
 # Calculate SHA256
 print_info "Calculating SHA256 checksum..."
-SHA256=$(shasum -a 256 "/tmp/plezy-macos.zip" | cut -d' ' -f1)
+SHA256=$(shasum -a 256 "/tmp/plezy-macos.dmg" | cut -d' ' -f1)
 print_success "SHA256: $SHA256"
 
-# Verify ZIP contents
-print_info "Verifying ZIP contents..."
-ZIP_CONTENTS=$(unzip -l "/tmp/plezy-macos.zip")
-echo "$ZIP_CONTENTS"
+# Verify DMG contents
+print_info "Verifying DMG contents..."
+hdiutil attach "/tmp/plezy-macos.dmg" -nobrowse -quiet
 
-if ! echo "$ZIP_CONTENTS" | grep -q "Plezy.app/"; then
+# Find the mount point
+MOUNT_POINT=$(hdiutil info | grep -A1 "plezy-macos.dmg" | grep "/Volumes" | awk '{print $1}')
+if [ -z "$MOUNT_POINT" ]; then
+    MOUNT_POINT="/Volumes/Plezy"
+fi
+
+echo "DMG contents:"
+ls -la "$MOUNT_POINT"
+
+if [ ! -d "$MOUNT_POINT/Plezy.app" ]; then
     print_warning "Plezy.app not found in expected location"
-    print_info "ZIP contents above - please verify manually"
+    print_info "DMG contents above - please verify manually"
+    hdiutil detach "$MOUNT_POINT" -quiet
     read -p "Continue anyway? (y/N): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_error "Aborting due to unexpected ZIP structure"
+        print_error "Aborting due to unexpected DMG structure"
         exit 1
     fi
+else
+    hdiutil detach "$MOUNT_POINT" -quiet
 fi
 
 # Create backup of current cask
@@ -109,7 +120,7 @@ cask "plezy" do
   version "$VERSION"
   sha256 "$SHA256"
 
-  url "https://github.com/edde746/plezy/releases/download/#{version}/plezy-macos.zip"
+  url "https://github.com/edde746/plezy/releases/download/#{version}/plezy-macos.dmg"
   name "Plezy"
   desc "Modern Plex client for desktop and mobile"
   homepage "https://github.com/edde746/plezy"
@@ -164,7 +175,7 @@ else
 fi
 
 # Clean up
-rm -f "/tmp/plezy-macos.zip"
+rm -f "/tmp/plezy-macos.dmg"
 
 print_success "Update completed!"
 echo
